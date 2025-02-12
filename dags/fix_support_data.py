@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeSqlApiOperator
 from datetime import datetime
 from datetime import timedelta
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -9,6 +9,10 @@ S3_CONN_ID = "aws_default"
 BUCKET_NAME = "gu-dev-airflow-config-files"
 SQL_FILE_KEY_1 = "ao-55-script.sql"
 SQL_FILE_KEY_2 = "ao-57-script.sql"
+
+_SNOWFLAKE_DB = "DB_GU_DWH"
+_SNOWFLAKE_SCHEMA = "CORE_TABLES"
+_SNOWFLAKE_TABLE = "SUPPORTER"
 
 def read_sql_file_from_s3(bucket_name, key, s3_conn_id):
     s3_hook = S3Hook(aws_conn_id=s3_conn_id)
@@ -23,25 +27,21 @@ with DAG(
 ) as dag:
 
 
-    set_autocommit = SnowflakeOperator(
-        task_id="set_autocommit_false",
-        sql="ALTER SESSION SET AUTOCOMMIT = FALSE;",
-        snowflake_conn_id="snowflake_default"
-    )
-
-    update_supporters_set_name = SnowflakeOperator(
+    update_supporters_set_name = SnowflakeSqlApiOperator(
         task_id='update_supporters_set_name',
+        snowflake_conn_id='snowflake_default',
         sql=read_sql_file_from_s3(BUCKET_NAME,SQL_FILE_KEY_1,S3_CONN_ID),
-        snowflake_conn_id='snowflake_default',
-        execution_timeout=timedelta(minutes=60)
+        statement_count=1,
+        autocommit=False
     )
 
-    update_supporters_set_default_name_soft_deleted = SnowflakeOperator(
+
+    update_supporters_set_default_name_soft_deleted = SnowflakeSqlApiOperator(
         task_id='update_supporters_set_default_name_soft_deleted',
-        sql=read_sql_file_from_s3(BUCKET_NAME,SQL_FILE_KEY_2,S3_CONN_ID),
         snowflake_conn_id='snowflake_default',
-        execution_timeout=timedelta(minutes=60)
+        sql=read_sql_file_from_s3(BUCKET_NAME,SQL_FILE_KEY_2,S3_CONN_ID),
+        statement_count=1,
+        autocommit=False
     )
 
-    set_autocommit >> update_supporters_set_name >> update_supporters_set_default_name_soft_deleted
-
+    update_supporters_set_name >> update_supporters_set_default_name_soft_deleted

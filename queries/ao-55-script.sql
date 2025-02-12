@@ -1,6 +1,6 @@
 BEGIN
     LET total_processed := 0; -- Inicializamos el contador de registros procesados
-    LET batch_size := 100000; -- Configurar tamaño de lotes
+    LET batch_size := 1000; -- Configurar tamaño de lotes
     LET total_rows := 0;
 
     SELECT COUNT(*)
